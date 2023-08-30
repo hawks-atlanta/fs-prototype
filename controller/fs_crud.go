@@ -111,3 +111,37 @@ func (c *Controller) CreateFile(cf *CreateFile) (file models.File, err error) {
 	}
 	return file, err
 }
+
+type DeleteFile struct {
+	OwnerUUID uuid.UUID `json:"ownerUUID"`
+	FileUUID  uuid.UUID `json:"fileUUID"`
+}
+
+func (df *DeleteFile) Check() (err error) {
+	if df.OwnerUUID == uuid.Nil {
+		err = fmt.Errorf("no owner UUID provided")
+		return err
+	}
+	if df.FileUUID == uuid.Nil {
+		err = fmt.Errorf("no file UUID provided")
+	}
+	return err
+}
+
+// Deletes file from the index
+func (c *Controller) DeleteFile(df *DeleteFile) (err error) {
+	err = df.Check()
+	if err != nil {
+		err = fmt.Errorf("invalid file deletion request: %w", err)
+		return err
+	}
+
+	err = c.DB.
+		Where("uuid = ? AND owner_uuid = ?", df.FileUUID, df.OwnerUUID).
+		Delete(&models.File{}).
+		Error
+	if err != nil {
+		err = fmt.Errorf("failed to delete file: %w", err)
+	}
+	return err
+}
