@@ -20,7 +20,6 @@ func (swm *ShareWithMe) Check() (err error) {
 	return err
 }
 
-// TODO: Test this
 // Used to list all the files shared with the current user
 func (c *Controller) ShareWithMe(swm *ShareWithMe) (shared []models.SharedFile, err error) {
 	err = swm.Check()
@@ -43,7 +42,6 @@ type ShareWithWho struct {
 	FileUUID  uuid.UUID `json:"fileUUID"`
 }
 
-// TODO: Test this
 func (sww *ShareWithWho) Check() (err error) {
 	if sww.OwnerUUID == uuid.Nil {
 		err = fmt.Errorf("no owner UUID provided")
@@ -55,7 +53,6 @@ func (sww *ShareWithWho) Check() (err error) {
 	return err
 }
 
-// TODO: Test this
 // Used to query users that have access to a file
 func (c *Controller) ShareWithWho(sww *ShareWithWho) (shared []models.SharedFile, err error) {
 	err = sww.Check()
