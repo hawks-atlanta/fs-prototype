@@ -25,7 +25,6 @@ func (crf *CanReadFile) Check() (err error) {
 	return err
 }
 
-// TODO: Test this
 // Can read file is inteded to be used internally by other operations of the metadata
 // Will check if user owns the file
 // Or iif user has at least access by share directly or indirectly

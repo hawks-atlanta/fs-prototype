@@ -128,6 +128,55 @@ func (df *DeleteFile) Check() (err error) {
 	return err
 }
 
+// TODO: List directory
+
+type QueryFile struct {
+	UserUUID uuid.UUID `json:"userUUID"`
+	FileUUID uuid.UUID `json:"fileUUID"`
+}
+
+// TODO: Test this
+func (qf *QueryFile) Check() (err error) {
+	if qf.UserUUID == uuid.Nil {
+		err = fmt.Errorf("no user UUID provided")
+		return err
+	}
+	if qf.FileUUID == uuid.Nil {
+		err = fmt.Errorf("no file UUID provided")
+	}
+	return err
+}
+
+// Intended to only be used by the Gateway
+// The server checks if the user owns the file.
+// If not the server tries to determine the access to the file by shared files with this account
+func (c *Controller) QueryFile(qf *QueryFile) (archive models.Archive, err error) {
+	err = qf.Check()
+	if err != nil {
+		err = fmt.Errorf("invalid query file request: %w", err)
+		return archive, err
+	}
+	var crf = CanReadFile{
+		UserUUID: qf.UserUUID,
+		FileUUID: qf.FileUUID,
+	}
+	err = c.CanReadFile(&crf)
+	if err != nil {
+		return archive, err
+	}
+	err = c.DB.
+		Raw(`
+		SELECT archives.* 
+		FROM archives, files 
+		WHERE
+			archives.uuid = files.archive_uuid 
+			AND files.uuid = ?
+		LIMIT 1`, qf.FileUUID).
+		Scan(&archive).
+		Error
+	return archive, err
+}
+
 // Deletes file from the index
 func (c *Controller) DeleteFile(df *DeleteFile) (err error) {
 	err = df.Check()
@@ -145,3 +194,5 @@ func (c *Controller) DeleteFile(df *DeleteFile) (err error) {
 	}
 	return err
 }
+
+// TODO: Move file

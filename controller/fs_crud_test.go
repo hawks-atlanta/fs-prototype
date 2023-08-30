@@ -308,4 +308,185 @@ func TestController_DeleteFile(t *testing.T) {
 			Error
 		assertions.ErrorIs(err, gorm.ErrRecordNotFound)
 	})
+	t.Run("Invalid request", func(t *testing.T) {
+		assertions := assert.New(t)
+
+		c, err := Default()
+		assertions.Nil(err)
+		defer c.Close()
+
+		// Delete parent
+		var df = DeleteFile{}
+		err = c.DeleteFile(&df)
+		assertions.NotNil(err)
+
+	})
+}
+
+func TestController_QueryFile(t *testing.T) {
+	t.Run("Owned file", func(t *testing.T) {
+		assertions := assert.New(t)
+
+		c, err := Default()
+		assertions.Nil(err)
+		defer c.Close()
+
+		var (
+			contents = "fmt.Println(`hello`)"
+			cf       = CreateFile{
+				Filename:  "hello-world.go",
+				OwnerUUID: uuid.New(),
+				Hash:      utils.Hash(contents),
+				Size:      uint64(len(contents)),
+			}
+		)
+		file, err := c.CreateFile(&cf)
+		assertions.Nil(err)
+
+		var qf = QueryFile{
+			UserUUID: cf.OwnerUUID,
+			FileUUID: file.UUID,
+		}
+		archive, err := c.QueryFile(&qf)
+		assertions.Nil(err)
+
+		assertions.NotEmpty(archive.Hash)
+	})
+	t.Run("Not owned but shared", func(t *testing.T) {
+		assertions := assert.New(t)
+
+		c, err := Default()
+		assertions.Nil(err)
+		defer c.Close()
+
+		var (
+			contents = "fmt.Println(`hello`)"
+			cf       = CreateFile{
+				Filename:  "hello-world.go",
+				OwnerUUID: uuid.New(),
+				Hash:      utils.Hash(contents),
+				Size:      uint64(len(contents)),
+			}
+		)
+		file, err := c.CreateFile(&cf)
+		assertions.Nil(err)
+
+		var sr = ShareRequest{
+			OwnerUUID:      cf.OwnerUUID,
+			FileUUID:       file.UUID,
+			TargetUserUUID: uuid.New(),
+		}
+		err = c.ShareFile(&sr)
+		assertions.Nil(err)
+
+		var qf = QueryFile{
+			UserUUID: sr.TargetUserUUID,
+			FileUUID: file.UUID,
+		}
+		archive, err := c.QueryFile(&qf)
+		assertions.Nil(err)
+
+		assertions.NotEmpty(archive.Hash)
+	})
+	t.Run("Not owned but shared inside directory", func(t *testing.T) {
+		assertions := assert.New(t)
+
+		c, err := Default()
+		assertions.Nil(err)
+		defer c.Close()
+
+		var (
+			owner    = uuid.New()
+			parentCf = CreateFile{
+				Filename:  "Desktop",
+				OwnerUUID: owner,
+			}
+		)
+		parent, err := c.CreateFile(&parentCf)
+		assertions.Nil(err)
+
+		var (
+			contents = "fmt.Println(`hello`)"
+			cf       = CreateFile{
+				Filename:        "hello-world.go",
+				OwnerUUID:       owner,
+				Hash:            utils.Hash(contents),
+				ParentDirectory: &parent.UUID,
+				Size:            uint64(len(contents)),
+			}
+		)
+		file, err := c.CreateFile(&cf)
+		assertions.Nil(err)
+
+		// Share parent
+		var sr = ShareRequest{
+			OwnerUUID:      parentCf.OwnerUUID,
+			FileUUID:       parent.UUID,
+			TargetUserUUID: uuid.New(),
+		}
+		err = c.ShareFile(&sr)
+		assertions.Nil(err)
+
+		// Check if can read file inside shared parent
+		var qf = QueryFile{
+			UserUUID: sr.TargetUserUUID,
+			FileUUID: file.UUID,
+		}
+		archive, err := c.QueryFile(&qf)
+		assertions.Nil(err)
+
+		assertions.NotEmpty(archive.Hash)
+	})
+	t.Run("Zero Access", func(t *testing.T) {
+		assertions := assert.New(t)
+
+		c, err := Default()
+		assertions.Nil(err)
+		defer c.Close()
+
+		var (
+			owner    = uuid.New()
+			parentCf = CreateFile{
+				Filename:  "Desktop",
+				OwnerUUID: owner,
+			}
+		)
+		parent, err := c.CreateFile(&parentCf)
+		assertions.Nil(err)
+
+		var (
+			contents = "fmt.Println(`hello`)"
+			cf       = CreateFile{
+				Filename:        "hello-world.go",
+				OwnerUUID:       owner,
+				Hash:            utils.Hash(contents),
+				ParentDirectory: &parent.UUID,
+				Size:            uint64(len(contents)),
+			}
+		)
+		file, err := c.CreateFile(&cf)
+		assertions.Nil(err)
+
+		// Check if can read file inside shared parent
+		var qf = QueryFile{
+			UserUUID: uuid.New(),
+			FileUUID: file.UUID,
+		}
+		archive, err := c.QueryFile(&qf)
+		assertions.NotNil(err)
+
+		assertions.Empty(archive.Hash)
+	})
+	t.Run("Invalid Request", func(t *testing.T) {
+		assertions := assert.New(t)
+
+		c, err := Default()
+		assertions.Nil(err)
+		defer c.Close()
+
+		// Check if can read file inside shared parent
+		var qf = QueryFile{}
+		_, err = c.QueryFile(&qf)
+		assertions.NotNil(err)
+	})
 }
