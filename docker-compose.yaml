@@ -1,0 +1,19 @@
+version: "3.3"
+
+networks:
+  server:
+    external: false
+
+services:
+  postgres:
+    networks:
+      - server
+    container_name: server-postgres
+    restart: unless-stopped
+    image: postgres:latest
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_DB: sulcud
+      POSTGRES_USER: sulcud
+      POSTGRES_PASSWORD: sulcud
