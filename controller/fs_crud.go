@@ -3,7 +3,6 @@ package controller
 import (
 	"errors"
 	"fmt"
-	"regexp"
 
 	"github.com/google/uuid"
 	"github.com/hawks-atlanta/fs-prototype/models"
@@ -19,30 +18,8 @@ type CreateFile struct {
 	Size            uint64     `json:"size,omitempty"`
 }
 
-var checkFilename = regexp.MustCompile(`(?m)^\w+.+`)
-
-func (cf *CreateFile) Check() (err error) {
-	if !checkFilename.MatchString(cf.Filename) {
-		err = fmt.Errorf("invalid file name provided, it should start with a number or character")
-		return err
-	}
-	if cf.OwnerUUID == uuid.Nil {
-		err = fmt.Errorf("no owner UUID provided")
-		return err
-	}
-	if cf.Hash != "" && cf.Size == 0 {
-		err = fmt.Errorf("no empty files allowed")
-	}
-	return err
-}
-
 // Creates a new file in the filesystem index
 func (c *Controller) CreateFile(cf *CreateFile) (file models.File, err error) {
-	err = cf.Check()
-	if err != nil {
-		err = fmt.Errorf("invalid file creation request: %w", err)
-		return file, err
-	}
 
 	// Make sure current user is owner of the directory
 	if cf.ParentDirectory != nil && *cf.ParentDirectory != uuid.Nil {
@@ -117,17 +94,6 @@ type DeleteFile struct {
 	FileUUID  uuid.UUID `json:"fileUUID"`
 }
 
-func (df *DeleteFile) Check() (err error) {
-	if df.OwnerUUID == uuid.Nil {
-		err = fmt.Errorf("no owner UUID provided")
-		return err
-	}
-	if df.FileUUID == uuid.Nil {
-		err = fmt.Errorf("no file UUID provided")
-	}
-	return err
-}
-
 // TODO: List directory
 
 type QueryFile struct {
@@ -135,27 +101,10 @@ type QueryFile struct {
 	FileUUID uuid.UUID `json:"fileUUID"`
 }
 
-// TODO: Test this
-func (qf *QueryFile) Check() (err error) {
-	if qf.UserUUID == uuid.Nil {
-		err = fmt.Errorf("no user UUID provided")
-		return err
-	}
-	if qf.FileUUID == uuid.Nil {
-		err = fmt.Errorf("no file UUID provided")
-	}
-	return err
-}
-
 // Intended to only be used by the Gateway
 // The server checks if the user owns the file.
 // If not the server tries to determine the access to the file by shared files with this account
 func (c *Controller) QueryFile(qf *QueryFile) (archive models.Archive, err error) {
-	err = qf.Check()
-	if err != nil {
-		err = fmt.Errorf("invalid query file request: %w", err)
-		return archive, err
-	}
 	var crf = CanReadFile{
 		UserUUID: qf.UserUUID,
 		FileUUID: qf.FileUUID,
@@ -179,11 +128,6 @@ func (c *Controller) QueryFile(qf *QueryFile) (archive models.Archive, err error
 
 // Deletes file from the index
 func (c *Controller) DeleteFile(df *DeleteFile) (err error) {
-	err = df.Check()
-	if err != nil {
-		err = fmt.Errorf("invalid file deletion request: %w", err)
-		return err
-	}
 
 	err = c.DB.
 		Where("uuid = ? AND owner_uuid = ?", df.FileUUID, df.OwnerUUID).
@@ -195,4 +139,33 @@ func (c *Controller) DeleteFile(df *DeleteFile) (err error) {
 	return err
 }
 
-// TODO: Move file
+type MoveFile struct {
+	OwnerUUID   uuid.UUID  `json:"ownerUUID"`
+	FileUUID    uuid.UUID  `json:"fileUUID"`
+	NewLocation *uuid.UUID `json:"newLocation,omitempty"`
+	NewName     *string    `json:"newName,omitempty"`
+}
+
+func (c *Controller) MoveFile(mf *MoveFile) (err error) {
+	err = c.DB.Transaction(func(tx *gorm.DB) error {
+		query := tx.
+			Model(&models.File{}).
+			Where("uuid = ? AND owner_uuid = ?", mf.FileUUID, mf.OwnerUUID)
+		if mf.NewLocation != nil {
+			var file models.File
+			err = tx.
+				Where("uuid = ? AND owner_uuid = ?", *mf.NewLocation, mf.OwnerUUID).
+				First(&file).
+				Error
+			if err != nil {
+				return err
+			}
+			err = query.Update("parent_uuid", file.UUID).Error
+		}
+		if err == nil && mf.NewName != nil {
+			err = query.Update("name", *mf.NewName).Error
+		}
+		return err
+	})
+	return err
+}

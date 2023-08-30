@@ -8,39 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCanReadFile_Check(t *testing.T) {
-	t.Run("Succeed", func(t *testing.T) {
-		assertions := assert.New(t)
-
-		var crf = CanReadFile{
-			UserUUID: uuid.New(),
-			FileUUID: uuid.New(),
-		}
-		err := crf.Check()
-		assertions.Nil(err)
-	})
-	t.Run("Failed", func(t *testing.T) {
-		t.Run("UserUUID", func(t *testing.T) {
-			assertions := assert.New(t)
-
-			var crf = CanReadFile{
-				FileUUID: uuid.New(),
-			}
-			err := crf.Check()
-			assertions.NotNil(err)
-		})
-		t.Run("FileUUID", func(t *testing.T) {
-			assertions := assert.New(t)
-
-			var crf = CanReadFile{
-				UserUUID: uuid.New(),
-			}
-			err := crf.Check()
-			assertions.NotNil(err)
-		})
-	})
-}
-
 func TestController_CanReadFile(t *testing.T) {
 	t.Run("Owned file", func(t *testing.T) {
 		assertions := assert.New(t)

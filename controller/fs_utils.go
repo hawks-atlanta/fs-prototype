@@ -14,17 +14,6 @@ type CanReadFile struct {
 	FileUUID uuid.UUID `json:"fileUUID"`
 }
 
-func (crf *CanReadFile) Check() (err error) {
-	if crf.UserUUID == uuid.Nil {
-		err = fmt.Errorf("no user UUID provided")
-		return err
-	}
-	if crf.FileUUID == uuid.Nil {
-		err = fmt.Errorf("no file UUID provided")
-	}
-	return err
-}
-
 // Can read file is inteded to be used internally by other operations of the metadata
 // Will check if user owns the file
 // Or iif user has at least access by share directly or indirectly

@@ -10,64 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestCreateFile_Check(t *testing.T) {
-	t.Run("Succeed", func(t *testing.T) {
-		assertions := assert.New(t)
-
-		var (
-			contents = "fmt.Println(`hello`)"
-			cf       = CreateFile{
-				Filename:  "hello-world.go",
-				OwnerUUID: uuid.New(),
-				Hash:      utils.Hash(contents),
-				Size:      uint64(len(contents)),
-			}
-		)
-		assertions.Nil(cf.Check())
-	})
-	t.Run("Invalid", func(t *testing.T) {
-		t.Run("Filename", func(t *testing.T) {
-			assertions := assert.New(t)
-			var (
-				contents = "fmt.Println(`hello`)"
-				cf       = CreateFile{
-					Filename:  "!hello-world.go",
-					OwnerUUID: uuid.New(),
-					Hash:      utils.Hash(contents),
-					Size:      uint64(len(contents)),
-				}
-			)
-			assertions.NotNil(cf.Check())
-		})
-		t.Run("OwnerUUID", func(t *testing.T) {
-			assertions := assert.New(t)
-			var (
-				contents = "fmt.Println(`hello`)"
-				cf       = CreateFile{
-					Filename: "hello-world.go",
-					Hash:     utils.Hash(contents),
-					Size:     uint64(len(contents)),
-				}
-			)
-			assertions.NotNil(cf.Check())
-		})
-		t.Run("Size", func(t *testing.T) {
-			assertions := assert.New(t)
-
-			var (
-				contents = "fmt.Println(`hello`)"
-				cf       = CreateFile{
-					Filename:  "hello-world.go",
-					OwnerUUID: uuid.New(),
-					Hash:      utils.Hash(contents),
-					Size:      0,
-				}
-			)
-			assertions.NotNil(cf.Check())
-		})
-	})
-}
-
 func TestController_CreateFile(t *testing.T) {
 	t.Run("Create files", func(t *testing.T) {
 		t.Run("Without parent", func(t *testing.T) {
@@ -157,60 +99,6 @@ func TestController_CreateFile(t *testing.T) {
 			)
 			_, err = c.CreateFile(&cf)
 			assertions.NotNil(err)
-		})
-		t.Run("Invalid request", func(t *testing.T) {
-			assertions := assert.New(t)
-
-			c, err := Default()
-			assertions.Nil(err)
-			defer c.Close()
-
-			var (
-				contents = "fmt.Println(`hello`)"
-				cf       = CreateFile{
-					Filename:  "!hello-world.go",
-					OwnerUUID: uuid.New(),
-					Hash:      utils.Hash(contents),
-					Size:      uint64(len(contents)),
-				}
-			)
-			_, err = c.CreateFile(&cf)
-			assertions.NotNil(err)
-		})
-	})
-}
-
-func TestDeleteFile_Check(t *testing.T) {
-	t.Run("Succeed", func(t *testing.T) {
-		assertions := assert.New(t)
-
-		var cf = DeleteFile{
-			OwnerUUID: uuid.New(),
-			FileUUID:  uuid.New(),
-		}
-
-		assertions.Nil(cf.Check())
-	})
-	t.Run("Invalid", func(t *testing.T) {
-		t.Run("OwnerUUID", func(t *testing.T) {
-			assertions := assert.New(t)
-
-			var cf = DeleteFile{
-				OwnerUUID: uuid.Nil,
-				FileUUID:  uuid.New(),
-			}
-
-			assertions.NotNil(cf.Check())
-		})
-		t.Run("FileUUID", func(t *testing.T) {
-			assertions := assert.New(t)
-
-			var cf = DeleteFile{
-				OwnerUUID: uuid.New(),
-				FileUUID:  uuid.Nil,
-			}
-
-			assertions.NotNil(cf.Check())
 		})
 	})
 }
@@ -307,19 +195,6 @@ func TestController_DeleteFile(t *testing.T) {
 			First(&check).
 			Error
 		assertions.ErrorIs(err, gorm.ErrRecordNotFound)
-	})
-	t.Run("Invalid request", func(t *testing.T) {
-		assertions := assert.New(t)
-
-		c, err := Default()
-		assertions.Nil(err)
-		defer c.Close()
-
-		// Delete parent
-		var df = DeleteFile{}
-		err = c.DeleteFile(&df)
-		assertions.NotNil(err)
-
 	})
 }
 
@@ -477,16 +352,8 @@ func TestController_QueryFile(t *testing.T) {
 
 		assertions.Empty(archive.Hash)
 	})
-	t.Run("Invalid Request", func(t *testing.T) {
-		assertions := assert.New(t)
+}
 
-		c, err := Default()
-		assertions.Nil(err)
-		defer c.Close()
-
-		// Check if can read file inside shared parent
-		var qf = QueryFile{}
-		_, err = c.QueryFile(&qf)
-		assertions.NotNil(err)
-	})
+func TestController_MoveFile(t *testing.T) {
+	// TODO: implement me!
 }
